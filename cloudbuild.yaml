@@ -1,0 +1,26 @@
+steps:
+  # 1. Installa le dipendenze per verificare che tutto sia ok
+  - name: 'ruby:3.2'
+    entrypoint: 'bundle'
+    args: ['install', '--path=vendor/bundle']
+
+  # 2. Deploy della Cloud Function
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'functions'
+      - 'deploy'
+      - 'send-sms-function'
+      - '--gen2'
+      - '--region=europe-west1'
+      - '--runtime=ruby32'
+      - '--source=.'
+      - '--entry-point=send_sms'
+      - '--trigger-http'
+      - '--allow-unauthenticated' # Rimuovi se vuoi autenticazione IAM
+      - '--set-secrets=TWILIO_ACCOUNT_SID=twilio-account-sid:latest,TWILIO_AUTH_TOKEN=twilio-auth-token:latest,TWILIO_FROM_NUMBER=twilio-from-number:latest'
+
+# Timeout e logging ottimizzati
+timeout: '300s'
+options:
+  logging: CLOUD_LOGGING_ONLY
