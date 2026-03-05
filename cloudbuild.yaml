@@ -14,15 +14,13 @@ steps:
       - '-c'
       - |
         # Leggi il token
-        # Nota: usiamo cat per leggere il contenuto del file
-        ACCESS_TOKEN=$(cat /workspace/access_token)
+        access_token=$(cat /workspace/access_token)
         
-        # Configura Bundler
-        # L'host deve essere senza protocollo (https://)
-        REGISTRY_HOST="europe-west1-ruby.pkg.dev"
+        # Configura Bundler (variabili minuscole per evitare sostituzioni Cloud Build)
+        registry_host="europe-west1-ruby.pkg.dev"
         
-        echo "Configuro auth per $REGISTRY_HOST..."
-        bundle config set --global "https://$REGISTRY_HOST" "oauth2accesstoken:$ACCESS_TOKEN"
+        echo "Configuro auth per $registry_host..."
+        bundle config set --global "https://$registry_host" "oauth2accesstoken:$access_token"
 
         # Installa
         bundle install --jobs=4 --retry=3
