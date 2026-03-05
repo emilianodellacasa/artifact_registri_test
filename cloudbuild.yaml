@@ -1,10 +1,25 @@
 steps:
-  # 1. Installa le dipendenze per verificare che tutto sia ok
+  # 1. Configura credenziali per Artifact Registry (Privato)
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        # Configura credenziali per Bundler
+        gcloud artifacts print-settings ruby \
+            --project=function-artifact-registry \
+            --repository=ruby-gems \
+            --location=europe-west1 > ~/.gem/credentials
+        chmod 600 ~/.gem/credentials
+
+  # 2. Installa le gemme (usando SOLO il registry privato)
   - name: 'ruby:3.2'
     entrypoint: 'bundle'
-    args: ['install', '--path=vendor/bundle']
+    args: ['install', '--jobs=4', '--retry=3']
+    env:
+      - 'BUNDLE_GEMFILE=Gemfile'
 
-  # 2. Deploy della Cloud Function
+  # 3. Deploy della Cloud Function
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
     args:
@@ -17,10 +32,11 @@ steps:
       - '--source=.'
       - '--entry-point=send_sms'
       - '--trigger-http'
-      - '--allow-unauthenticated' # Rimuovi se vuoi autenticazione IAM
+      - '--allow-unauthenticated'
+      # Segreti (come prima)
       - '--set-secrets=TWILIO_ACCOUNT_SID=twilio-account-sid:latest,TWILIO_AUTH_TOKEN=twilio-auth-token:latest,TWILIO_FROM_NUMBER=twilio-from-number:latest'
 
-# Timeout e logging ottimizzati
+# Opzioni
 timeout: '300s'
 options:
   logging: CLOUD_LOGGING_ONLY
