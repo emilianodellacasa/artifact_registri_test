@@ -28,6 +28,7 @@ steps:
         bundle config set --global "$registry_url/" "oauth2accesstoken:$token"
 
         # Installa
+        bundle config set --global without 'development test'
         bundle install --verbose --jobs=4 --retry=3
 
   # 3. Deploy
