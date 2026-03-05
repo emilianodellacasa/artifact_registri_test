@@ -1,27 +1,35 @@
 steps:
-  # 1. Ottieni un Access Token valido usando l'immagine SDK di Google
+  # 1. Ottieni un Access Token valido
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'bash'
     args:
       - '-c'
-      - |
-        gcloud auth print-access-token > /workspace/access_token
+      - 'gcloud auth print-access-token > /workspace/access_token'
 
-  # 2. Installa le gemme usando il token per l'autenticazione
+  # 2. Configura credenziali (Manuali) e Installa
   - name: 'ruby:3.2'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        # Leggi il token
-        access_token=$(cat /workspace/access_token)
+        token=$(cat /workspace/access_token)
+        registry_url="https://europe-west1-ruby.pkg.dev/function-artifact-registry/ruby-gems"
         
-        # Configura Bundler (variabili minuscole per evitare sostituzioni Cloud Build)
-        registry_host="europe-west1-ruby.pkg.dev"
+        # Crea directory credentials
+        mkdir -p ~/.gem
+        chmod 700 ~/.gem
         
-        echo "Configuro auth per $registry_host..."
-        bundle config set --global "https://$registry_host" "oauth2accesstoken:$access_token"
-
+        # Scrivi le credenziali nel formato che RubyGems ama
+        # Chiave: URL del registry
+        # Valore: Bearer TOKEN
+        echo ":rubygems_api_key: Bearer $token" > ~/.gem/credentials
+        echo "$registry_url: Bearer $token" >> ~/.gem/credentials
+        
+        chmod 600 ~/.gem/credentials
+        
+        # Debug: Mostra il contenuto (oscurato) per essere sicuri
+        echo "Credenziali create in ~/.gem/credentials"
+        
         # Installa
         bundle install --jobs=4 --retry=3
 
