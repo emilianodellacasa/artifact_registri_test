@@ -5,7 +5,8 @@ steps:
     args:
       - '-c'
       - |
-        # Configura credenziali per Bundler
+        # Crea directory e configura credenziali
+        mkdir -p ~/.gem
         gcloud artifacts print-settings ruby \
             --project=function-artifact-registry \
             --repository=ruby-gems \
