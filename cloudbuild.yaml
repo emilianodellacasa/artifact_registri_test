@@ -14,18 +14,15 @@ steps:
       - '-c'
       - |
         # Leggi il token
-        TOKEN=$(cat /workspace/access_token)
+        # Nota: usiamo cat per leggere il contenuto del file
+        ACCESS_TOKEN=$(cat /workspace/access_token)
         
-        # Configura Bundler per usare il token come password per il registry
-        # L'username è "oauth2accesstoken" (standard GCP)
-        # L'host deve corrispondere ESATTAMENTE a quello nel Gemfile (senza protocollo)
-        HOST="europe-west1-ruby.pkg.dev"
+        # Configura Bundler
+        # L'host deve essere senza protocollo (https://)
+        REGISTRY_HOST="europe-west1-ruby.pkg.dev"
         
-        echo "Configuro auth per $HOST..."
-        bundle config set --global $HOST oauth2accesstoken:$TOKEN
-        
-        # Prova alternativa se sopra fallisce: configurazione via URI
-        # bundle config set --global https://europe-west1-ruby.pkg.dev/function-artifact-registry/ruby-gems/ oauth2accesstoken:$TOKEN
+        echo "Configuro auth per $REGISTRY_HOST..."
+        bundle config set --global "https://$REGISTRY_HOST" "oauth2accesstoken:$ACCESS_TOKEN"
 
         # Installa
         bundle install --jobs=4 --retry=3
