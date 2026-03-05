@@ -1,43 +1,50 @@
 steps:
-  # 1. Configura credenziali per Artifact Registry (Privato)
+  # 1. Configura credenziali per Artifact Registry e salvale nel workspace condiviso
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        # Crea directory e configura credenziali
-        mkdir -p ~/.gem
+        # Genera credenziali in un file temporaneo nel workspace
         gcloud artifacts print-settings ruby \
             --project=function-artifact-registry \
             --repository=ruby-gems \
-            --location=europe-west1 > ~/.gem/credentials
-        chmod 600 ~/.gem/credentials
+            --location=europe-west1 > /workspace/gem_credentials
+        chmod 600 /workspace/gem_credentials
 
-  # 2. Installa le gemme (usando SOLO il registry privato)
+  # 2. Installa le gemme (usando le credenziali generate)
   - name: 'ruby:3.2'
-    entrypoint: 'bundle'
-    args: ['install', '--jobs=4', '--retry=3']
-    env:
-      - 'BUNDLE_GEMFILE=Gemfile'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        # Copia le credenziali nella home dell'utente corrente
+        mkdir -p ~/.gem
+        cp /workspace/gem_credentials ~/.gem/credentials
+        
+        # Installa le gemme
+        bundle install --jobs=4 --retry=3
 
   # 3. Deploy della Cloud Function
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: 'gcloud'
+    entrypoint: 'bash'
     args:
-      - 'functions'
-      - 'deploy'
-      - 'send-sms-function'
-      - '--gen2'
-      - '--region=europe-west1'
-      - '--runtime=ruby32'
-      - '--source=.'
-      - '--entry-point=send_sms'
-      - '--trigger-http'
-      - '--allow-unauthenticated'
-      # Segreti (come prima)
-      - '--set-secrets=TWILIO_ACCOUNT_SID=twilio-account-sid:latest,TWILIO_AUTH_TOKEN=twilio-auth-token:latest,TWILIO_FROM_NUMBER=twilio-from-number:latest'
+      - '-c'
+      - |
+        # Anche il deployer potrebbe aver bisogno di accedere al registry se GCF deve ricostruire
+        # Ma per GCF Gen2, di solito basta che il service account abbia i permessi.
+        # Tuttavia, passiamo le credenziali se serve.
+        
+        gcloud functions deploy send-sms-function \
+        --gen2 \
+        --region=europe-west1 \
+        --runtime=ruby32 \
+        --source=. \
+        --entry-point=send_sms \
+        --trigger-http \
+        --allow-unauthenticated \
+        --set-secrets=TWILIO_ACCOUNT_SID=twilio-account-sid:latest,TWILIO_AUTH_TOKEN=twilio-auth-token:latest,TWILIO_FROM_NUMBER=twilio-from-number:latest
 
-# Opzioni
 timeout: '300s'
 options:
   logging: CLOUD_LOGGING_ONLY
