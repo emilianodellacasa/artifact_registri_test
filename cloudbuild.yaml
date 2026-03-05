@@ -6,32 +6,29 @@ steps:
       - '-c'
       - 'gcloud auth print-access-token > /workspace/access_token'
 
-  # 2. Configura credenziali (Manuali) e Installa
+  # 2. Configura Bundler (Seguendo la documentazione ufficiale)
   - name: 'ruby:3.2'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
         token=$(cat /workspace/access_token)
+        
+        # URL esatto del registry (deve matchare il Gemfile)
+        # Assicuriamoci che non ci siano slash finali ambigui
         registry_url="https://europe-west1-ruby.pkg.dev/function-artifact-registry/ruby-gems"
         
-        # Crea directory credentials
-        mkdir -p ~/.gem
-        chmod 700 ~/.gem
+        echo "Configuro auth per $registry_url"
         
-        # Scrivi le credenziali nel formato che RubyGems ama
-        # Chiave: URL del registry
-        # Valore: Bearer TOKEN
-        echo ":rubygems_api_key: Bearer $token" > ~/.gem/credentials
-        echo "$registry_url: Bearer $token" >> ~/.gem/credentials
+        # Metodo 1: Sintassi moderna (con username:password combinati)
+        # Username fisso: oauth2accesstoken
+        bundle config set --global "$registry_url" "oauth2accesstoken:$token"
         
-        chmod 600 ~/.gem/credentials
-        
-        # Debug: Mostra il contenuto (oscurato) per essere sicuri
-        echo "Credenziali create in ~/.gem/credentials"
-        
+        # Metodo 2: Prova anche con lo slash finale, per sicurezza (Bundler a volte lo vuole)
+        bundle config set --global "$registry_url/" "oauth2accesstoken:$token"
+
         # Installa
-        bundle install --jobs=4 --retry=3
+        bundle install --verbose --jobs=4 --retry=3
 
   # 3. Deploy
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
