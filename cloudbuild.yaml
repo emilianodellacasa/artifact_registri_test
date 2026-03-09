@@ -31,7 +31,7 @@ steps:
         bundle config set --global without 'development test'
         
         # Disabilita Compact Index (Fix per errore UTF-8 su Artifact Registry)
-        export BUNDLE_DISABLE_COMPACT_INDEX_SUPPORT=true
+        bundle config set --global disable_compact_index_support true
         
         bundle install --verbose --jobs=4 --retry=3
 
