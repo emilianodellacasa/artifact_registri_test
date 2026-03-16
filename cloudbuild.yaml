@@ -22,16 +22,16 @@ steps:
         
         # Metodo 1: Sintassi moderna (con username:password combinati)
         # Username fisso: oauth2accesstoken
-        bundle config set --global "$registry_url" "oauth2accesstoken:$token"
+        bundle config set --local "$registry_url" "oauth2accesstoken:$token"
         
         # Metodo 2: Prova anche con lo slash finale, per sicurezza (Bundler a volte lo vuole)
-        bundle config set --global "$registry_url/" "oauth2accesstoken:$token"
+        bundle config set --local "$registry_url/" "oauth2accesstoken:$token"
 
         # Installa
-        bundle config set --global without 'development test'
+        bundle config set --local without 'development test'
         
         # Disabilita Compact Index (Fix per errore UTF-8 su Artifact Registry)
-        bundle config set --global disable_compact_index_support true
+        bundle config set --local disable_compact_index_support true
         
         bundle install --verbose --jobs=4 --retry=3
 

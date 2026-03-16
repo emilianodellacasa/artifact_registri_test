@@ -1,0 +1,9 @@
+.gcloudignore
+.git
+.gitignore
+
+# Include .gitignore rules
+#!include:.gitignore
+
+# But explicitly ALLOW uploading the .bundle folder so .bundle/config is pushed to Cloud Buildpacks
+!/.bundle/
