@@ -6,34 +6,29 @@ steps:
       - '-c'
       - 'gcloud auth print-access-token > /workspace/access_token'
 
-  # 2. Configura Bundler (Seguendo la documentazione ufficiale)
+  # 2. Brute Force Vendoring: scarichiamo le gemme via curl bypassando l'indice corrotto
   - name: 'ruby:3.2'
-    entrypoint: 'bash'
+    entrypoint: 'ruby'
     args:
-      - '-c'
+      - '-e'
       - |
-        token=$(cat /workspace/access_token)
+        token = File.read('/workspace/access_token').strip
+        registry_url = "https://europe-west1-ruby.pkg.dev/function-artifact-registry/ruby-gems/gems"
         
-        # URL esatto del registry (deve matchare il Gemfile)
-        # Assicuriamoci che non ci siano slash finali ambigui
-        registry_url="https://europe-west1-ruby.pkg.dev/function-artifact-registry/ruby-gems"
+        # Parsiamo il lockfile per la lista completa delle gemme (comprese dipendenze)
+        require 'bundler'
+        lockfile = Bundler::LockfileParser.new(File.read('Gemfile.lock'))
         
-        echo "Configuro auth per $registry_url"
+        Dir.mkdir('vendor') unless Dir.exist?('vendor')
+        Dir.mkdir('vendor/cache') unless Dir.exist?('vendor/cache')
         
-        # Metodo 1: Sintassi moderna (con username:password combinati)
-        # Username fisso: oauth2accesstoken
-        bundle config set --local "$registry_url" "oauth2accesstoken:$token"
-        
-        # Metodo 2: Prova anche con lo slash finale, per sicurezza (Bundler a volte lo vuole)
-        bundle config set --local "$registry_url/" "oauth2accesstoken:$token"
-
-        # Installa
-        bundle config set --local without 'development test'
-        
-        # Disabilita Compact Index (Fix per errore UTF-8 su Artifact Registry)
-        bundle config set --local disable_compact_index_support true
-        
-        bundle install --verbose --jobs=4 --retry=3
+        lockfile.specs.each do |spec|
+          filename = "#{spec.name}-#{spec.version}.gem"
+          puts "Downloading #{filename}..."
+          url = "#{registry_url}/#{filename}"
+          # Download diretto bypassando l'indice di Bundler
+          system("curl -L -s -H 'Authorization: Bearer #{token}' -o vendor/cache/#{filename} #{url}")
+        end
 
   # 3. Deploy
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -41,6 +36,13 @@ steps:
     args:
       - '-c'
       - |
+        token=$(cat /workspace/access_token)
+        
+        # Fondamentale: rimuoviamo .gcloudignore perché ora vogliamo che 
+        # il deploy carichi la cartella vendor/cache appena popolata.
+        rm -f .gcloudignore
+        rm -rf .bundle
+        
         gcloud functions deploy send-sms-function \
         --gen2 \
         --region=europe-west1 \
@@ -49,8 +51,9 @@ steps:
         --entry-point=send_sms \
         --trigger-http \
         --allow-unauthenticated \
+        --set-build-env-vars="BUNDLE_EUROPE__WEST1__RUBY__PKG__DEV=oauth2accesstoken:$token" \
         --set-secrets=TWILIO_ACCOUNT_SID=twilio-account-sid:latest,TWILIO_AUTH_TOKEN=twilio-auth-token:latest,TWILIO_FROM_NUMBER=twilio-from-number:latest
 
-timeout: '300s'
+timeout: '360s'
 options:
   logging: CLOUD_LOGGING_ONLY
